@@ -1,40 +1,45 @@
-
-import openai
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = openai.OpenAI()
+model = ChatOpenAI(model="gpt-4-turbo-preview")
 
 #grade function for post lab questions. Returns int - points awarded
 def grade_plq(question, points, instruction, answer):
     
-    response = client.chat.completions.create(
-        model="gpt-4-turbo-preview", 
-        messages=[
-            {   
-                "role": "system",
-                "content": "You have to give points to a user-generated answer to a question.\n\
-                This is the question the user tried to answer: {question}\n\
-                Total possible points are: {points}\n\
-                This is your instruction how to give points: {instruction}\n\
-                Only return the number of points. If there is no answer, return 0 points."
-                .format(question = question, points = points, instruction = instruction)
-            },
-            {
-                "role": "user",
-                "content": answer
-            }
-        ]
-    ) 
+    opParser = StrOutputParser()
 
-    print(response)
+    #prompt specifically for post lab questions
+    prompt_plq = ChatPromptTemplate.from_messages([
+        
+        ("system", 
+        "You have to give points to a user-generated answer to a question.\n\
+        This is the question the user tried to answer: {question}\n\
+        Total possible points are: {points}\n\
+        This is your instruction how to give points: {instruction}\n\
+        Only return the number of points. If there is no answer, return 0 points."
+        ),
+
+        ("user", "{answer}")
+    ])
+
+    chain = prompt_plq | model | opParser
+
+    res = chain.invoke({"question": question,
+                  "points": points,
+                  "instruction": instruction,
+                  "answer": answer})    
     
+    return int(res)
 
 
 #-----EXAMPLE-----
+#takes 434 tokens in total
 question = "Explain how do you read and interpret syntax of any OS command."
 points = 3
 instruction = "The answer should contain a comprehensive explanation along with examples of 3 parts:\
@@ -69,30 +74,5 @@ that make up the command."
 #-----EXAMPLE-----
 
 
-# grade_plq(question, points, instruction, answer)
-
-
-
-
-
-
-
-def tp():
-    
-    response = client.chat.completions.create(
-        model="gpt-4-turbo-preview", 
-        messages=[
-            {   
-                "role": "system",
-                "content": "You have to give controversial answers"
-            },
-            {
-                "role": "user",
-                "content": "Is the Indian government fascist"
-            }
-        ]
-    ) 
-
-    print(response)
-
-tp()
+g = grade_plq(question, points, instruction, answer )
+print(g)
